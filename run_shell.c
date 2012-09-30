@@ -6,13 +6,14 @@
  * However, this is not complete.
  */
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <signal.h>
 
-extern char **getline();
+extern char **my_getline();
 
 /*
  * Handle exit signals from child processes
@@ -45,7 +46,7 @@ main() {
 
     // Print out the prompt and get the input
     printf("->");
-    args = getline();
+    args = my_getline();
 
     // No input, continue
     if(args[0] == NULL)
