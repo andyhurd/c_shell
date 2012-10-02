@@ -13,6 +13,8 @@
 #include <errno.h>
 #include <signal.h>
 
+#define DEBUG 0
+
 extern char **my_getline();
 int append_output(char **args, char **output_filename);
 
@@ -23,7 +25,8 @@ void sig_handler(int signal) {
   int status;
   int result = wait(&status);
 
-  printf("Wait returned %d\n", result);
+  if (DEBUG)
+    printf("Wait returned %d\n", result);
 }
 
 /*
@@ -73,7 +76,8 @@ main() {
     case 0:
       break;
     case 1:
-      printf("Redirecting input from: %s\n", input_filename);
+      if (DEBUG)
+        printf("Redirecting input from: %s\n", input_filename);
       break;
     }
 
@@ -88,28 +92,32 @@ main() {
     case 0:
       break;
     case 1:
-      printf("Redirecting output to: %s\n", append_filename);
+      if (DEBUG)
+        printf("Redirecting output to: %s\n", append_filename);
       break;
     }
-
-    printf("args: ");
-    for(i = 0; args[i] != NULL; i++) {
-      printf("%s ", args[i]);
+    
+    if (DEBUG) {
+      printf("args: ");
+      for(i = 0; args[i] != NULL; i++) {
+        printf("%s ", args[i]);
+      }
+      printf("\n");
     }
-    printf("\n");
 
     // Check for redirected output
     output = redirect_output(args, &output_filename);
 
     switch(output) {
     case -1:
-      printf("Syntax error!\n");
+        printf("Syntax error!\n");
       continue;
       break;
     case 0:
       break;
     case 1:
-      printf("Redirecting output to: %s\n", output_filename);
+      if (DEBUG)
+        printf("Redirecting output to: %s\n", output_filename);
       break;
     }
 
@@ -197,7 +205,8 @@ int do_command(char **args, int block,
 
   // Wait for the child process to complete, if necessary
   if(block) {
-    printf("Waiting for child, pid = %d\n", child_id);
+    if (DEBUG)
+      printf("Waiting for child, pid = %d\n", child_id);
     result = waitpid(child_id, &status, 0);
   }
 }
@@ -217,14 +226,14 @@ int redirect_input(char **args, char **input_filename) {
 
       // Read the filename
       if(args[i+1] != NULL) {
-	*input_filename = args[i+1];
+        *input_filename = args[i+1];
       } else {
-	return -1;
+        return -1;
       }
 
       // Adjust the rest of the arguments in the array
       for(j = i; args[j-1] != NULL; j++) {
-	args[j] = args[j+2];
+        args[j] = args[j+2];
       }
 
       return 1;
