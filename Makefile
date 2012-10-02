@@ -7,4 +7,4 @@ lex.yy.c: lex.c
 	flex lex.c
 
 clean:
-	rm shell lex.yy.c
+	rm -f shell lex.yy.c
