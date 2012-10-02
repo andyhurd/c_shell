@@ -92,7 +92,7 @@ main() {
       break;
     case 0:
       break;
-    case 1:
+    case 1
       if (DEBUG)
         printf("Redirecting (Appending) output to: %s\n", append_filename);
       break;
@@ -103,7 +103,7 @@ main() {
       for(i = 0; args[i] != NULL; i++) {
         printf("%s ", args[i]);
       }
-      printf("\n");
+      printf("\n")
     }
 
     // Check for redirected output
@@ -116,9 +116,9 @@ main() {
       break;
     case 0:
       break;
-    case 1:
+    case 1
       if (DEBUG)
-        printf("Redirecting (Overriding) output to: %s\n", output_filename);
+        printf("Redirecting (Overriding) output to: %s\n", output_filename)
       break;
     }
 
