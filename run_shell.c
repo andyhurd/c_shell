@@ -77,6 +77,7 @@ main() {
       break;
     }
 
+	
     // Check for append output
     append = append_output(args, &append_filename);
 
@@ -88,10 +89,11 @@ main() {
     case 0:
       break;
     case 1:
-      printf("Redirecting output to: %s\n", append_filename);
+      printf("Redirecting (Appending) output to: %s\n", append_filename);
       break;
     }
 
+	
     printf("args: ");
     for(i = 0; args[i] != NULL; i++) {
       printf("%s ", args[i]);
@@ -109,7 +111,7 @@ main() {
     case 0:
       break;
     case 1:
-      printf("Redirecting output to: %s\n", output_filename);
+      printf("Redirecting (Overriding) output to: %s\n", output_filename);
       break;
     }
 
