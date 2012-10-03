@@ -51,6 +51,10 @@ main() {
     // Print out the prompt and get the input
     printf("->");
     args = my_getline();
+  
+    // No input, continue
+    if(args == NULL)
+      return -1;
 
     // Check for command delimiters
     nCommands = splitCommands(&commands, args);
