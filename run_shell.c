@@ -71,7 +71,7 @@ main() {
 
 
 /*
- * Initate Command
+ * Initiate Command
  */
 int initCommand(char **args){
 	int i;
@@ -443,6 +443,8 @@ int *splitCommands(char ****commands, char **args) {
   int cmdStart = 0;
   int *nCommands = (int *)malloc(sizeof(int));
   *nCommands = 0;
+  int *error = (int *)malloc(sizeof(int));
+  *error = -1;
   int numArgs = 0;
   int i;
   char *buffer;
@@ -450,9 +452,19 @@ int *splitCommands(char ****commands, char **args) {
   // find number of commands total
   for (i = 0; args[i] != NULL; i++) {
     if (args[i][0] == ';') {
+      if(i == cmdStart) {
+        printf("SHELL: Syntax error near unexpected token ';'\n");
+        free(nCommands);
+        return error;
+      }
+      cmdStart = i + 1;
       (*nCommands)++;
     }
   }
+
+  cmdStart = 0;
+
+  free(error);
 
   // find number of arguments total
   for (i = 0; args[i] != NULL; i++) {
