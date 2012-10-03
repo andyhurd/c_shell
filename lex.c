@@ -4,7 +4,7 @@ char *_args[10];
 int _argcount = 0;
 %}
 
-WORD	[a-zA-Z0-9\/\.-]+
+WORD	[a-zA-Z0-9\/\.-~]+
 SPECIAL	[()><|&;*]
 
 %%
@@ -27,5 +27,7 @@ SPECIAL	[()><|&;*]
 %%
 
 char **my_getline() {
-  return (char **)yylex();
+  char **args = (char **)yylex();
+  yylex_destroy();
+  return args;
 }

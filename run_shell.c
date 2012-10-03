@@ -12,11 +12,13 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <signal.h>
+#include <string.h>
 
 #define DEBUG 0
 
 extern char **my_getline();
 int append_output(char **args, char **output_filename);
+void tilde(char **args);
 
 /*
  * Handle exit signals from child processes
@@ -61,6 +63,9 @@ main() {
     // Check for internal shell commands, such as exit
     if(internal_command(args))
       continue;
+
+    // Check for tilde (~)
+    tilde(args);
 
     // Check for an ampersand
     block = (ampersand(args) == 0);
@@ -127,6 +132,9 @@ main() {
 	       input, input_filename, 
 	       output, output_filename,
          append, append_filename);
+
+    for (i = 0; args[i] != NULL; i++)
+      free(args[i]);
   }
 }
 
@@ -147,6 +155,36 @@ int ampersand(char **args) {
   }
   
   return 0;
+}
+
+/*
+ * Check for tilde characters replace with home directory
+ */
+void tilde(char **args) {
+  int i;
+
+  for(i = 0; args[i] != NULL; i++) {
+    if(args[i][0] == '~') {
+      char *expandedLocation;
+      const char *homeDir = getenv("HOME");
+      int argLength = strlen(args[i]);
+      int length = strlen(homeDir) + argLength;
+
+      expandedLocation = (char *)malloc(sizeof(char) * length);
+      strcpy(expandedLocation, homeDir);
+
+      // Remove tilde from start of location
+      int j;
+      for (j = 0; args[i][j+1] != '\0'; j++) 
+        args[i][j] = args[i][j+1];
+      args[i][j] = '\0';
+
+      char *tempArg = args[i];
+      strcat(expandedLocation, args[i]);
+      args[i] = expandedLocation;
+      free(tempArg);
+    }
+  }
 }
 
 /* 
