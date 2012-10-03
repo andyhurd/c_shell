@@ -84,12 +84,12 @@ void executeCommand(char **args) {
   if(args[0] == NULL)
     return;
 
+  // Check for tilde (~)
+  tilde(args);
+
   // Check for internal shell commands, such as exit
   if(internal_command(args))
     return;
-
-  // Check for tilde (~)
-  tilde(args);
 
   // Check for an ampersand
   block = (ampersand(args) == 0);
@@ -195,6 +195,9 @@ void tilde(char **args) {
 int internal_command(char **args) {
   if(strcmp(args[0], "exit") == 0) {
     exit(0);
+  } else if (strcmp(args[0], "cd") == 0) {
+    chdir(args[1]);
+    return 1;
   }
 
   return 0;
