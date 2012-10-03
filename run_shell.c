@@ -249,9 +249,7 @@ int do_command(char **args, int block,
 		// Execute the command
 		result = execvp(args[0], args);
 	}
-
-
-
+	
     exit(-1);
   }
 
@@ -271,10 +269,9 @@ int runPipes(char **args){
 	int fds[2];
 	int child;
 	int i;
-	
-
 	int k = 0;
 	int pipeLocation = -1;
+	
 	// Find location of "|"
 	while(args[++pipeLocation][0] != '|');
 	
@@ -295,16 +292,18 @@ int runPipes(char **args){
 	
 	//Create Pipe
 	pipe(fds);
+	
+	//fork kidas
 	if (!fork()){
-		close(1);
-		dup(fds[1]);
-		close(fds[0]);
-		initCommand(cmd1);
+		close(1); //Close stnd out
+		dup(fds[1]); //Reassign fds[1] to be stnd out
+		close(fds[0]); // close pipe input;
+		initCommand(cmd1); //Run command (left side)
 	} else {
-		close(0);
-		dup(fds[0]);
-		close(fds[1]);
-		initCommand(args);
+		close(0); // Close stnd in
+		dup(fds[0]); // Reassign fds[0] to be new stnd in
+		close(fds[1]); // close pipe input;
+		initCommand(args); // Run right side of pipe
 	}
 	return 0;
 }
