@@ -5,14 +5,14 @@
  * with "<" and output redirection with ">".
  * However, this is not complete.
  */
-
+ 
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <signal.h>
-//changed
+
 #define DEBUG 0
 
 extern char **my_getline();
@@ -33,16 +33,7 @@ void sig_handler(int signal) {
  * The main shell function
  */ 
 main() {
-  int i;
   char **args; 
-  int result;
-  int block;
-  int output;
-  int input;
-  int append;
-  char *output_filename;
-  char *input_filename;
-  char *append_filename;
 
   // Set up the signal handler
   sigset(SIGCHLD, sig_handler);
@@ -54,13 +45,32 @@ main() {
     printf("->");
     args = my_getline();
 
+	initCommand(args);
+  }
+}
+
+/*
+ * Initate Command
+ */
+int initCommand(char **args){
+	int i;
+	int result;
+	int block;
+	int output;
+	int input;
+	int append;
+	int pipe;
+	char *output_filename;
+	char *input_filename;
+	char *append_filename;
+  
     // No input, continue
     if(args[0] == NULL)
-      continue;
+      return -1;
 
     // Check for internal shell commands, such as exit
     if(internal_command(args))
-      continue;
+      return -1;
 
     // Check for an ampersand
     block = (ampersand(args) == 0);
@@ -71,7 +81,7 @@ main() {
     switch(input) {
     case -1:
       printf("Syntax error!\n");
-      continue;
+	  return -1;
       break;
     case 0:
       break;
@@ -88,7 +98,7 @@ main() {
     switch(append) {
     case -1:
       printf("Syntax error!\n");
-      continue;
+	  return -1;
       break;
     case 0:
       break;
@@ -99,20 +109,22 @@ main() {
     }
     
     if (DEBUG) {
-      printf("args: ");
-      for(i = 0; args[i] != NULL; i++) {
-        printf("%s ", args[i]);
-      }
-      printf("\n");
-    }
+		printf("Args (in main): ");debugPrintArgs(args);
+	}
+		
+    
 
+	// Check for pipe "|"
+	pipe = pipes(args);
+	
     // Check for redirected output
     output = redirect_output(args, &output_filename);
+	
 
     switch(output) {
     case -1:
         printf("Syntax error!\n");
-      continue;
+	  return -1;
       break;
     case 0:
       break;
@@ -122,12 +134,43 @@ main() {
       break;
     }
 
+    switch(pipe) {
+    case -1:
+        printf("Syntax error!\n");
+	  return -1;
+      break;
+    case 0:
+      break;
+    case 1:
+      if (DEBUG)
+        printf("Pipe detected\n");
+      break;
+    }
+	
+	
     // Do the command
     do_command(args, block, 
-	       input, input_filename, 
-	       output, output_filename,
-         append, append_filename);
-  }
+			input, input_filename, 
+			output, output_filename,
+			append, append_filename,
+			pipe);
+}
+
+/*
+ * Check for | and returns true if found
+ * 	Returns 1 if true, 0 if false
+ */
+int pipes(char **args){
+	int i;
+	if (args[0][0] == '|'){
+		return -1;
+	}
+	for (i = 1; args[i] != NULL; i++){
+		if (args[i][0] == '|'){
+			return 1;
+		}
+	}
+	return 0;
 }
 
 /*
@@ -167,7 +210,8 @@ int internal_command(char **args) {
 int do_command(char **args, int block,
 	       int input, char *input_filename,
 	       int output, char *output_filename,
-         int append, char *append_filename) {
+         int append, char *append_filename,
+		 int pipe) {
   
   int result;
   pid_t child_id;
@@ -197,9 +241,16 @@ int do_command(char **args, int block,
 
     if(output)
       freopen(output_filename, "w+", stdout);
+	  
+	if (pipe){
+		// Pipe Command
+		result = runPipes(args);
+	} else { //Normal Command
+		// Execute the command
+		result = execvp(args[0], args);
+	}
 
-    // Execute the command
-    result = execvp(args[0], args);
+
 
     exit(-1);
   }
@@ -210,6 +261,64 @@ int do_command(char **args, int block,
       printf("Waiting for child, pid = %d\n", child_id);
     result = waitpid(child_id, &status, 0);
   }
+}
+
+/*
+ * Deals with all things pipes!
+ */
+int runPipes(char **args){
+	char **cmd1;
+	int fds[2];
+	int child;
+	int i;
+	
+
+	int k = 0;
+	int pipeLocation = -1;
+	// Find location of "|"
+	while(args[++pipeLocation][0] != '|');
+	
+	// Copy first command over
+	cmd1 = malloc((pipeLocation + 2) * sizeof(char*));
+	for (k = 0; k < pipeLocation; k++){
+		cmd1[k] = args[k];
+	}
+	int j;
+	for (j = 0; args[j] != NULL; j++){
+		args[j] = args[j+k+1];
+	}
+	
+	if (DEBUG) {
+		printf("cmd1: "); debugPrintArgs(cmd1);
+		printf("args: ");debugPrintArgs(args);
+	}
+	
+	//Create Pipe
+	pipe(fds);
+	if (!fork()){
+		close(1);
+		dup(fds[1]);
+		close(fds[0]);
+		initCommand(cmd1);
+	} else {
+		close(0);
+		dup(fds[0]);
+		close(fds[1]);
+		initCommand(args);
+	}
+	return 0;
+}
+
+/*
+ * Print args for debug purpuses
+ */
+int debugPrintArgs(char **args){
+	int i = 0;
+	while(args[i] != NULL){
+		printf("%s ", args[i++]);
+	}
+	printf("\n");
+	return i;
 }
 
 /*
