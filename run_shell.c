@@ -91,7 +91,7 @@ int initCommand(char **args){
       break;
     }
 
-	
+
     // Check for append output
     append = append_output(args, &append_filename);
 
@@ -111,15 +111,15 @@ int initCommand(char **args){
     if (DEBUG) {
 		printf("Args (in main): ");debugPrintArgs(args);
 	}
-		
+
     
 
 	// Check for pipe "|"
 	pipe = pipes(args);
-	
+
     // Check for redirected output
     output = redirect_output(args, &output_filename);
-	
+
 
     switch(output) {
     case -1:
@@ -146,8 +146,8 @@ int initCommand(char **args){
         printf("Pipe detected\n");
       break;
     }
-	
-	
+
+
     // Do the command
     do_command(args, block, 
 			input, input_filename, 
@@ -241,7 +241,7 @@ int do_command(char **args, int block,
 
     if(output)
       freopen(output_filename, "w+", stdout);
-	  
+
 	if (pipe){
 		// Pipe Command
 		result = runPipes(args);
@@ -258,6 +258,16 @@ int do_command(char **args, int block,
     if (DEBUG)
       printf("Waiting for child, pid = %d\n", child_id);
     result = waitpid(child_id, &status, 0);
+  } else {
+  
+	if (strcmp(args[0], "vi") == 0) {
+		kill(child_id, SIGSTOP);
+	}
+	struct sigaction sigchild; 
+	memset (&sigchild, 0, sizeof(sigchild)); 
+	sigchild.sa_handler = status;
+	sigchild.sa_flags = SA_SIGINFO | SA_NOCLDWAIT;
+	sigaction(SIGCHLD, &sigchild, 0);
   }
 }
 
@@ -271,10 +281,10 @@ int runPipes(char **args){
 	int i;
 	int k = 0;
 	int pipeLocation = -1;
-	
+
 	// Find location of "|"
 	while(args[++pipeLocation][0] != '|');
-	
+
 	// Copy first command over
 	cmd1 = malloc((pipeLocation + 2) * sizeof(char*));
 	for (k = 0; k < pipeLocation; k++){
@@ -284,15 +294,15 @@ int runPipes(char **args){
 	for (j = 0; args[j] != NULL; j++){
 		args[j] = args[j+k+1];
 	}
-	
+
 	if (DEBUG) {
 		printf("cmd1: "); debugPrintArgs(cmd1);
 		printf("args: ");debugPrintArgs(args);
 	}
-	
+
 	//Create Pipe
 	pipe(fds);
-	
+
 	//fork kidas
 	if (!fork()){
 		close(1); //Close stnd out
@@ -416,4 +426,3 @@ int append_output(char **args, char **output_filename) {
 
   return 0;
 }
-
