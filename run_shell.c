@@ -5,7 +5,7 @@
  * with "<" and output redirection with ">".
  * However, this is not complete.
  */
-
+ 
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -18,8 +18,8 @@
 
 extern char **my_getline();
 int *splitCommands(char ****commands, char **args);
-void executeCommand(char **args);
 void tilde(char **args);
+
 
 /*
  * Handle exit signals from child processes
@@ -36,10 +36,11 @@ void sig_handler(int signal) {
  * The main shell function
  */ 
 main() {
-  int i;
-  char **args; 
+  char **args;
+  int i; 
   int *nCommands;
   char ***commands;
+  
 
   // Set up the signal handler
   sigset(SIGCHLD, sig_handler);
@@ -63,52 +64,58 @@ main() {
         }
         printf("\n");
       }
-      executeCommand(commands[i]);
+      initCommand(commands[i]);
     }
   }
 }
 
-void executeCommand(char **args) {
-  int i;
-  int result;
-  int block;
-  int output;
-  int input;
-  char *output_filename;
-  char *input_filename;
 
-  if (DEBUG)
-    printf("in executeCmd");
+/*
+ * Initate Command
+ */
+int initCommand(char **args){
+	int i;
+	int result;
+	int block;
+	int output;
+	int input;
+	int pipe;
+	char *output_filename;
+	char *input_filename;
+  
+    // No input, continue
+    if(args[0] == NULL)
+      return -1;
 
-  // No input, continue
-  if(args[0] == NULL)
-    return;
+	  // Check for tilde (~)
+	  tilde(args);
+	  
+    // Check for internal shell commands, such as exit
+    if(internal_command(args))
+      return -1;
 
-  // Check for tilde (~)
-  tilde(args);
+    // Check for an ampersand
+    block = (ampersand(args) == 0);
 
-  // Check for internal shell commands, such as exit
-  if(internal_command(args))
-    return;
+    // Check for redirected input
+    input = redirect_input(args, &input_filename);
 
-  // Check for an ampersand
-  block = (ampersand(args) == 0);
+    switch(input) {
+    case -1:
+      printf("Syntax error!\n");
+	  return -1;
+      break;
+    case 0:
+      break;
+    case 1:
+      if (DEBUG)
+        printf("Redirecting input from: %s\n", input_filename);
+      break;
+    }
 
-  // Check for redirected input
-  input = redirect_input(args, &input_filename);
 
-  switch(input) {
-  case -1:
-    printf("Syntax error!\n");
-    return;
-    break;
-  case 0:
-    break;
-  case 1:
-    if (DEBUG)
-      printf("Redirecting input from: %s\n", input_filename);
-    break;
-  }
+	// Check for pipe "|"
+	pipe = pipes(args);
 
   // Check for redirected output
   output = redirect_output(args, &output_filename);
@@ -130,13 +137,45 @@ void executeCommand(char **args) {
     break;
   }
 
-  // Do the command
-  do_command(args, block, 
-       input, input_filename, 
-       output, output_filename);
+    switch(pipe) {
+    case -1:
+        printf("Syntax error!\n");
+	  return -1;
+      break;
+    case 0:
+      break;
+    case 1:
+      if (DEBUG)
+        printf("Pipe detected\n");
+      break;
+    }
 
+
+    // Do the command
+    do_command(args, block, 
+			input, input_filename, 
+			output, output_filename,
+			pipe);
+			
   for (i = 0; args[i] != NULL; i++)
     free(args[i]);
+}
+
+/*
+ * Check for | and returns true if found
+ * 	Returns 1 if true, 0 if false
+ */
+int pipes(char **args){
+	int i;
+	if (args[0][0] == '|'){
+		return -1;
+	}
+	for (i = 1; args[i] != NULL; i++){
+		if (args[i][0] == '|'){
+			return 1;
+		}
+	}
+	return 0;
 }
 
 /*
@@ -208,7 +247,9 @@ int internal_command(char **args) {
  */
 int do_command(char **args, int block,
 	       int input, char *input_filename,
-	       int output, char *output_filename) { 
+	       int output, char *output_filename,
+		 int pipe) {
+  
   int result;
   pid_t child_id;
   int status;
@@ -238,8 +279,13 @@ int do_command(char **args, int block,
     if(output == 2)
       freopen(output_filename, "a+", stdout);
 
-    // Execute the command
-    result = execvp(args[0], args);
+	if (pipe){
+		// Pipe Command
+		result = runPipes(args);
+	} else { //Normal Command
+		// Execute the command
+		result = execvp(args[0], args);
+	}
 
     exit(-1);
   }
@@ -249,7 +295,76 @@ int do_command(char **args, int block,
     if (DEBUG)
       printf("Waiting for child, pid = %d\n", child_id);
     result = waitpid(child_id, &status, 0);
+  } else {
+  
+	if (strcmp(args[0], "vi") == 0) {
+		kill(child_id, SIGSTOP);
+	}
+	struct sigaction sigchild; 
+	memset (&sigchild, 0, sizeof(sigchild)); 
+	sigchild.sa_handler = status;
+	sigchild.sa_flags = SA_SIGINFO | SA_NOCLDWAIT;
+	sigaction(SIGCHLD, &sigchild, 0);
   }
+}
+
+/*
+ * Deals with all things pipes!
+ */
+int runPipes(char **args){
+	char **cmd1;
+	int fds[2];
+	int child;
+	int i;
+	int k = 0;
+	int pipeLocation = -1;
+
+	// Find location of "|"
+	while(args[++pipeLocation][0] != '|');
+
+	// Copy first command over
+	cmd1 = malloc((pipeLocation + 2) * sizeof(char*));
+	for (k = 0; k < pipeLocation; k++){
+		cmd1[k] = args[k];
+	}
+	int j;
+	for (j = 0; args[j] != NULL; j++){
+		args[j] = args[j+k+1];
+	}
+
+	if (DEBUG) {
+		printf("cmd1: "); debugPrintArgs(cmd1);
+		printf("args: ");debugPrintArgs(args);
+	}
+
+	//Create Pipe
+	pipe(fds);
+
+	//fork kidas
+	if (!fork()){
+		close(1); //Close stnd out
+		dup(fds[1]); //Reassign fds[1] to be stnd out
+		close(fds[0]); // close pipe input;
+		initCommand(cmd1); //Run command (left side)
+	} else {
+		close(0); // Close stnd in
+		dup(fds[0]); // Reassign fds[0] to be new stnd in
+		close(fds[1]); // close pipe input;
+		initCommand(args); // Run right side of pipe
+	}
+	return 0;
+}
+
+/*
+ * Print args for debug purpuses
+ */
+int debugPrintArgs(char **args){
+	int i = 0;
+	while(args[i] != NULL){
+		printf("%s ", args[i++]);
+	}
+	printf("\n");
+	return i;
 }
 
 /*
@@ -321,6 +436,9 @@ int redirect_output(char **args, char **output_filename) {
   return 0;
 }
 
+/*
+ *	Splits commands by ';'
+ */
 int *splitCommands(char ****commands, char **args) {
   int cmdStart = 0;
   int *nCommands = (int *)malloc(sizeof(int));
@@ -420,4 +538,3 @@ int *splitCommands(char ****commands, char **args) {
 
   return nCommands;
 }
-

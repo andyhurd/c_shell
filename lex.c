@@ -1,6 +1,6 @@
 %{
-int _numargs = 10;
-char *_args[10];
+int _numargs = 50;
+char *_args[50];
 int _argcount = 0;
 %}
 
@@ -27,7 +27,5 @@ SPECIAL	[()><|&;*]
 %%
 
 char **my_getline() {
-  char **args = (char **)yylex();
-  yylex_destroy();
-  return args;
+  return (char **)yylex();
 }
