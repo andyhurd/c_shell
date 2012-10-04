@@ -5,7 +5,7 @@ int _argcount = 0;
 %}
 
 WORD	[~a-zA-Z0-9\/\.\-\_]+
-SPECIAL	[()><|&;*]
+SPECIAL	[><|&;]
 
 %%
 	_argcount = 0; 

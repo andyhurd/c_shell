@@ -5,7 +5,8 @@
  * with "<" and output redirection with ">".
  * However, this is not complete.
  */
- 
+  
+  
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -300,7 +301,10 @@ int do_command(char **args, int block,
 	
     if (DEBUG)
       printf("Running child in background, pid = %d\n", child_id);
-	if (strcmp(args[0], "vi") == 0) {
+	if ((strcmp(args[0], "vi") == 0) ||
+			(strcmp(args[0], "vim") == 0) ||
+			(strcmp(args[0], "nano") == 0) ||
+			(strcmp(args[0], "emacs") == 0)) {
 		kill(child_id, SIGSTOP);
 	}
 	void delete_zombies(void);
@@ -309,14 +313,6 @@ int do_command(char **args, int block,
     sa.sa_handler = SIG_IGN;
     sa.sa_flags = 0;
     sigaction(SIGCHLD, &sa, NULL);
-
-	/*
-	struct sigaction sigchild; 
-	memset (&sigchild, 0, sizeof(sigchild)); 
-	sigchild.sa_handler = status;
-	sigchild.sa_flags = SA_SIGINFO | SA_NOCLDWAIT;
-	sigaction(SIGCHLD, &sigchild, 0);
-	*/
   }
   
 
