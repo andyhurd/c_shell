@@ -62,11 +62,7 @@ main() {
     int j;
     for (i = 0; i < *nCommands; i++) {
       if (DEBUG) {
-        printf("\nTESTING: ");
-        for (j = 0; commands[i][j] != NULL; j++) {
-          printf("%s ", commands[i][j]);
-        }
-        printf("\n");
+        printf("\nTESTING: "); debugPrintArgs(commands[i]);
       }
       initCommand(commands[i]);
     }
@@ -163,6 +159,7 @@ int initCommand(char **args){
 			
   for (i = 0; args[i] != NULL; i++)
     free(args[i]);
+	free(args);
 }
 
 /*
@@ -300,18 +297,33 @@ int do_command(char **args, int block,
       printf("Waiting for child, pid = %d\n", child_id);
     result = waitpid(child_id, &status, 0);
   } else {
-  
+	
+    if (DEBUG)
+      printf("Running child in background, pid = %d\n", child_id);
 	if (strcmp(args[0], "vi") == 0) {
 		kill(child_id, SIGSTOP);
 	}
+	void delete_zombies(void);
+	struct sigaction sa;
+	sigfillset(&sa.sa_mask);
+    sa.sa_handler = SIG_IGN;
+    sa.sa_flags = 0;
+    sigaction(SIGCHLD, &sa, NULL);
+
+	/*
 	struct sigaction sigchild; 
 	memset (&sigchild, 0, sizeof(sigchild)); 
 	sigchild.sa_handler = status;
 	sigchild.sa_flags = SA_SIGINFO | SA_NOCLDWAIT;
 	sigaction(SIGCHLD, &sigchild, 0);
+	*/
   }
+  
+
+  
 }
 
+ 
 /*
  * Deals with all things pipes!
  */
